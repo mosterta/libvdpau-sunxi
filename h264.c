@@ -812,7 +812,9 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
         
         c->output->decoder_private = output_p;
         c->output->decoder_private_free = h264_video_private_free;
-    }
+	}
+	else
+		output_p = c->output->decoder_private;
 
     if (info->field_pic_flag)
       output_p->pic_type = PIC_TYPE_FIELD;
