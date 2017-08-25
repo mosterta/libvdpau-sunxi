@@ -9,7 +9,7 @@ SRC = device.c presentation_queue.c surface_output.c surface_video.c \
 USE_VP8 = 0
 
 ifeq ($(USE_VP8),1)
-SRC += "vp8_decoder.c vp8.c"
+SRC += vp8_decoder.c vp8.c
 endif
 
 CEDARV_TARGET_BASE = libcedar_access.so
@@ -28,7 +28,7 @@ VE_H_INCLUDE = ve.h
 LIBCEDARDISPLAY_H_INCLUDE = libcedarDisplay.h
 
 CFLAGS ?= -Wall -O0 -g 
-LDFLAGS ?=
+LDFLAGS ?= -I.
 LIBS = -lrt -lm -lpthread
 LIBS_EGL = -lEGL
 LIBS_GLES2 = -lGLESv2
@@ -107,11 +107,11 @@ clean:
 	rm -f $(DISPLAY_DEP)
 	rm -f $(DISPLAY_TARGET)
 
-install: $(TARGET) $(TARGET_NV)
+install: $(TARGET) $(NV_TARGET) $(DISPLAY_TARGET) $(CEDARV_TARGET)
 	install -D $(TARGET) $(DESTDIR)$(MODULEDIR)/$(TARGET)
-	ln -sf $(TARGET) $(DESTDIR)$(USRLIB)/$(TARGET_BASE)
+	ln -sf $(TARGET) $(DESTDIR)$(MODULEDIR)/$(TARGET_BASE)
 	install -D $(NV_TARGET) $(DESTDIR)$(MODULEDIR)/$(NV_TARGET)
-	ln -sf $(NV_TARGET) $(DESTDIR)$(USRLIB)/$(NV_TARGET_BASE)
+	ln -sf $(NV_TARGET) $(DESTDIR)$(MODULEDIR)/$(NV_TARGET_BASE)
 	install -D $(CEDARV_TARGET) $(DESTDIR)$(USRLIB)/$(CEDARV_TARGET)
 	ln -sf $(CEDARV_TARGET) $(DESTDIR)$(USRLIB)/$(CEDARV_TARGET_BASE)
 	install -D $(DISPLAY_TARGET) $(DESTDIR)$(USRLIB)/$(DISPLAY_TARGET)
