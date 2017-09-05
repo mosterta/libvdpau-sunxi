@@ -44,7 +44,7 @@
 
 static void (*Log)(int loglevel, const char *format, ...);
 
-#define DEBUG_IMAGE_DATA 1
+#define DEBUG_IMAGE_DATA 0
 
 enum col_plane
 {
@@ -256,6 +256,10 @@ VdpStatus glVDPAUGetVideoFrameConfig(vdpauSurfaceCedar surface, struct videoFram
     return VDP_STATUS_INVALID_HANDLE;
   }
 
+  if(handle_get_type(nv->surface) != htype_video)
+  {
+    return VDP_STATUS_INVALID_HANDLE;
+  }
   video_surface_ctx_t *vs = handle_get(nv->surface);
   if(! vs)
   {
