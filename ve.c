@@ -203,7 +203,10 @@ int cedarv_open(void)
 
              ve.version = readl(ve.regs + CEDARV_VERSION) >> 16;
 
-         cedarv_VeReset();
+             cedarv_VeReset();
+             writel(0x1, ve.regs + CEDARV_RESET);
+             usleep(20000); //20ms
+             writel(0x0, ve.regs + CEDARV_RESET);
          
 	     writel(0x00130007, ve.regs + CEDARV_CTRL);
 

@@ -79,6 +79,7 @@ static inline void writeb(uint8_t val, void *addr)
 #define CEDARV_ENGINE_HEVC			0x4
 
 #define CEDARV_CTRL				0x000
+#define CEDARV_RESET				0x004
 #define CEDARV_TIMEOUT				0x00c
 #define CEDARV_IPD_DBLK_BUF_CTRL    		0x050
 #define CEDARV_IPD_BUF              		0x054
