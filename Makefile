@@ -43,7 +43,7 @@ USE_UMP = 1
 
 ifeq ($(USE_UMP),1)
 LIBS  += -lUMP
-CFLAGS += -DUSE_UMP=1
+UMPFLAGS += -DUSE_UMP=1
 endif
 
 MAKEFLAGS += -rR --no-print-directory
@@ -189,6 +189,6 @@ uninstall:
 	rm -f $(DESTDIR)$(USRLIB)/vdpau_nv_sunxi.pc
 
 %.o: %.c
-	$(CC) $(DEP_CFLAGS) $(LIB_CFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(DEP_CFLAGS) $(LIB_CFLAGS) $(CFLAGS) $(UMPFLAGS) -c $< -o $@
 
 include $(wildcard $(DEP))
