@@ -33,8 +33,8 @@ LIBS = -lrt -lm -lpthread
 LIBS_EGL = -lEGL
 LIBS_GLES2 = -lGLESv2
 LIBS_VDPAU_SUNXI = -L $(PWD) libvdpau_sunxi.so.1
-LIBS_CEDARV = -L $(PWD) -lcedar_access
-LIBS_DISPLAY = -L $(PWD) -lcedar_access
+LIBS_CEDARV = -L $(PWD) $(CEDARV_TARGET)
+LIBS_DISPLAY = -L $(PWD) $(CEDARV_TARGET)
 CC = gcc
 
 PCFILE := $(shell mktemp -u)
@@ -92,6 +92,7 @@ $(CEDARV_TARGET): $(CEDARV_OBJ)
 
 $(DISPLAY_TARGET): $(DISPLAY_OBJ) $(CEDARV_TARGET) $(TARGET)
 	$(CROSS_COMPILE)$(CC) $(LIB_LDFLAGS_DISPLAY) $(LDFLAGS) $(DISPLAY_OBJ) $(LIBS) $(LIBS_CEDARV) -o $@
+
 
 clean:
 	rm -f $(OBJ)
