@@ -146,10 +146,17 @@ int glVDPAUIsSurfaceCedar (vdpauSurfaceCedar surface)
 void glVDPAUUnregisterSurfaceCedar (vdpauSurfaceCedar surface)
 {
    surface_display_ctx_t *nv  = handle_get(surface);
-   assert(nv);
-   
+   if(!nv)
+   {
+      return VDP_STATUS_INVALID_HANDLE;
+   }
+
    video_surface_ctx_t *vs = handle_get(nv->surface);
-   assert(vs);
+   if(!vs)
+   {
+      return VDP_STATUS_INVALID_HANDLE;
+   }
+
    if(vs->vdpNvState == VdpauNVState_Mapped)
    {
       vdpauSurfaceCedar surf[] = {surface};
@@ -183,14 +190,15 @@ static void mapVideoTextures(GLsizei numSurfaces, const vdpauSurfaceCedar *surfa
   for(j = 0; j < numSurfaces; j++)
   {
     surface_display_ctx_t *nv = handle_get(surfaces[j]);
-    assert(nv);
+    if(nv)
+    {
 
-    video_surface_ctx_t *vs = handle_get(nv->surface);
-    assert(vs);
-
-    vs->vdpNvState = VdpauNVState_Mapped;
-    handle_release(nv->surface);
-    nv->vdpNvState = VdpauNVState_Mapped;
+       video_surface_ctx_t *vs = handle_get(nv->surface);
+       if(vs)
+          vs->vdpNvState = VdpauNVState_Mapped;
+       handle_release(nv->surface);
+       nv->vdpNvState = VdpauNVState_Mapped;
+    }
     handle_release(surfaces[j]);
   }
 }
@@ -201,14 +209,14 @@ static void mapOutputTextures(GLsizei numSurfaces, const vdpauSurfaceCedar *surf
   for(j = 0; j < numSurfaces; j++)
   {
     surface_display_ctx_t *nv = handle_get(surfaces[j]);
-    assert(nv);
-
-    output_surface_ctx_t *vs = handle_get(nv->surface);
-    assert(vs);
-
-    vs->vdpNvState = VdpauNVState_Mapped;
-    handle_release(nv->surface);
-    nv->vdpNvState = VdpauNVState_Mapped;
+    if(nv)
+    {
+       output_surface_ctx_t *vs = handle_get(nv->surface);
+       if(vs)
+          vs->vdpNvState = VdpauNVState_Mapped;
+       handle_release(nv->surface);
+       nv->vdpNvState = VdpauNVState_Mapped;
+    }
     handle_release(surfaces[j]);
   }
 }
@@ -232,13 +240,14 @@ void glVDPAUUnmapSurfacesCedar(GLsizei numSurfaces, const vdpauSurfaceCedar *sur
   for(j = 0; j < numSurfaces; j++)
   {
     surface_display_ctx_t *nv  = handle_get(surfaces[j]);
-    assert(nv);
-    
-    video_surface_ctx_t *vs = handle_get(nv->surface);
-    assert(vs);
-    vs->vdpNvState = VdpauNVState_Registered;
-    handle_release(nv->surface);
-    nv->vdpNvState = VdpauNVState_Registered;
+    if(nv)
+    {
+       video_surface_ctx_t *vs = handle_get(nv->surface);
+       if(vs)
+          vs->vdpNvState = VdpauNVState_Registered;
+       handle_release(nv->surface);
+       nv->vdpNvState = VdpauNVState_Registered;
+    }
     handle_release(surfaces[j]);
   }
 }
