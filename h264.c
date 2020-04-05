@@ -1005,7 +1005,8 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
 		// enable int
 		writel(readl(cedarv_regs + CEDARV_H264_CTRL) | 0x7, cedarv_regs + CEDARV_H264_CTRL);
 
-		// SHOWTIME
+		// SHOWTIME, wait until write commands have been issued
+		__sync_synchronize();
 		writel(0x8, cedarv_regs + CEDARV_H264_TRIGGER);
 
 		++num_pics;
@@ -1023,6 +1024,7 @@ uint64_t tv, tv2;
 #endif
 
 		// clear status flags
+		__sync_synchronize();
         unsigned long status = readl(cedarv_regs + CEDARV_H264_STATUS);
         if(status & 0x2)
           printf("h264 status=0x%X\n", status);

@@ -2117,6 +2117,7 @@ int mpeg4_decode(decoder_ctx_t *decoder, VdpPictureInfoMPEG4Part2 const *_info, 
                 mpeg_trigger |= CEDARV_MPEG_TRIG_DEC_FORMAT(4);
                 mpeg_trigger |= CEDARV_MPEG_TRIG_MB_BOUNDARY(1);
                 
+		__sync_synchronize();
                 writel(mpeg_trigger, cedarv_regs + CEDARV_MPEG_TRIGGER);
                 //mpeg_trigger = 7;
                 //writel(mpeg_trigger, cedarv_regs + CEDARV_MPEG_TRIGGER);
@@ -2142,6 +2143,7 @@ int mpeg4_decode(decoder_ctx_t *decoder, VdpPictureInfoMPEG4Part2 const *_info, 
                 }
 #endif
                 // clean interrupt flag
+		__sync_synchronize();
                 writel(0x0000c00f, cedarv_regs + CEDARV_MPEG_STATUS);
                 int error = readl(cedarv_regs + CEDARV_MPEG_ERROR);
                 if(error)
