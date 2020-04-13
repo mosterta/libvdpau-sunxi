@@ -43,7 +43,7 @@ VdpStatus vdp_decoder_create(VdpDevice device, VdpDecoderProfile profile, uint32
     dec->device = dev;
     dec->profile = profile;
     dec->width = (width + 63) & ~63;
-    dec->height = height;
+    dec->height = (height + 63) & ~63;
 
     dec->data = cedarv_malloc(VBV_SIZE);
     if (! cedarv_isValid(dec->data))

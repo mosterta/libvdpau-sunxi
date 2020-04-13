@@ -88,8 +88,10 @@ static VdpStatus mpeg12_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_in
 		writel((uint32_t)(zigzag_scan[i]) << 8 | info->non_intra_quantizer_matrix[i], cedarv_regs + CEDARV_MPEG_IQ_MIN_INPUT);
 
 	// set size
-	uint16_t width = (decoder->width + 15) / 16;
-	uint16_t height = (decoder->height + 15) / 16;
+    uint16_t width = (decoder->width + 15) / 16;
+    uint16_t height = (decoder->height + 15) / 16;
+	output->vidWidth = width * 16;
+	output->vidHeight = height * 16;
 	writel((width << 8) | height, cedarv_regs + CEDARV_MPEG_SIZE);
 	writel(((width * 16) << 16) | (height * 16), cedarv_regs + CEDARV_MPEG_FRAME_SIZE);
 

@@ -78,7 +78,8 @@ typedef struct video_surface_ctx_struct
 	uint32_t width, height;
 	uint32_t stride_width;
 	uint32_t stride_height;
-	VdpChromaType chroma_type;
+    uint32_t vidWidth, vidHeight;
+    VdpChromaType chroma_type;
 	VdpYCbCrFormat source_format;
 	CEDARV_MEMORY dataY;
 	CEDARV_MEMORY dataU;
