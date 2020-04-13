@@ -168,7 +168,7 @@ void glVDPAUUnregisterSurfaceCedar (vdpauSurfaceCedar surface)
    {
       handle_release(nv->surface);
       handle_destroy(nv->surface);
-      nv->surface = 0;
+      //nv->surface = 0;
    }
 
    handle_release(surface);
@@ -292,8 +292,10 @@ VdpStatus glVDPAUGetVideoFrameConfig(vdpauSurfaceCedar surface, struct videoFram
     config->align[2] = 0;
   }
 
-  config->height = vs->stride_height;
-  config->width = vs->stride_width;
+  config->stride_height = vs->stride_height;
+  config->stride_width = vs->stride_width;
+  config->video_height = vs->stride_height; //vs->vidHeight;
+  config->video_width = vs->stride_width; //vs->vidWidth;
 
 #if DEBUG_IMAGE_DATA == 1
   static int first=1;

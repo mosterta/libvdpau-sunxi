@@ -31,8 +31,10 @@ extern "C"
 
   struct videoFrameConfig
   {
-    uint16_t  width;
-    uint16_t  height;
+    uint16_t  stride_width;
+    uint16_t  stride_height;
+    uint16_t  video_width;
+    uint16_t  video_height;
     void      *addr[3];
     uint8_t   align[3];
     uint8_t   srcFormat;
