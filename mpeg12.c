@@ -22,6 +22,8 @@
 #include "ve.h"
 #include <time.h>
 #include <stdio.h>
+#include <assert.h>
+#include <errno.h>
 
 #define TIMEMEAS 0
 
@@ -177,12 +179,15 @@ static VdpStatus mpeg12_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_in
 	uint64_t tv, tv2;
 	tv = get_time();
 #endif
-	cedarv_wait(1);
+    int status = cedarv_wait(1);
+    if (status <= 0) {
+      cedarv_VeReset();
+    }
 #if TIMEMEAS
 	tv2 = get_time();
-	if (tv2-tv > 10000000) {
+	if (tv2-tv > 100000000) {
 		printf("cedarv_wait, longer than 10ms:%lld, pics=%ld, longs=%ld\n", tv2-tv, num_pics, ++num_longs);
-		}
+	}
 #endif	
 
 	// clean interrupt flag
@@ -191,8 +196,8 @@ static VdpStatus mpeg12_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_in
 	// stop MPEG engine
 	cedarv_put();
         output->frame_decoded = 1;
-        
-	return VDP_STATUS_OK;
+
+    return VDP_STATUS_OK;
 }
 
 VdpStatus new_decoder_mpeg12(decoder_ctx_t *decoder)

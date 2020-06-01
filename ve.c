@@ -141,6 +141,10 @@ int cedarv_VeReset()
     ioctl(ve.fd, IOCTL_SET_VE_FREQ_DISP2, 320);
     ioctl(ve.fd, IOCTL_RESET_VE_DISP2, 0);
   }
+  writel(0x1, ve.regs + CEDARV_RESET);
+  usleep(20000); //20ms
+  writel(0x0, ve.regs + CEDARV_RESET);
+
   return 0;
 }
 
