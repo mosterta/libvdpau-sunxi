@@ -26,6 +26,7 @@
 
 VdpStatus vdp_decoder_create(VdpDevice device, VdpDecoderProfile profile, uint32_t width, uint32_t height, uint32_t max_references, VdpDecoder *decoder)
 {
+    int alignment;
     device_ctx_t *dev = handle_get(device);
     if (!dev)
         return VDP_STATUS_INVALID_HANDLE;
@@ -42,7 +43,11 @@ VdpStatus vdp_decoder_create(VdpDevice device, VdpDecoderProfile profile, uint32
     memset(dec, 0, sizeof(*dec));
     dec->device = dev;
     dec->profile = profile;
-    dec->width = (width + 15) & ~15;
+    if(cedarv_get_version() < 1680)
+        alignment = 15;
+    else 
+        alignment = 63;
+    dec->width = (width + alignment) & ~alignment;
     dec->height = (height);
 
     dec->data = cedarv_malloc(VBV_SIZE);

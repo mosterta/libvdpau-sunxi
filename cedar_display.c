@@ -320,6 +320,8 @@ VdpStatus glVDPAUGetVideoFrameConfig(vdpauSurfaceCedar surface, struct videoFram
 
 VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat format, uint32_t width, uint32_t height, vdpauSurfaceCedar *surface)
 {
+  int alignment;
+
   if (!surface)
     return VDP_STATUS_INVALID_POINTER;
    
@@ -339,8 +341,12 @@ VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat fo
   
   int mem_width 	= (width + 63) & ~63;
   int mem_height 	= (height + 63) & ~63;
-  vs->stride_width      = (width + 15) & ~15;
-  vs->stride_height     = (height) ;
+  if(cedarv_get_version() < 1680)
+     alignment = 16;
+  else
+     alignment = 63;
+  vs->stride_width      = (width + alignment) & ~alignment;
+  vs->stride_height     = (height);
 
   vs->plane_size 	= mem_width * mem_height;
   cedarv_setBufferInvalid(vs->dataY);
