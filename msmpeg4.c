@@ -307,8 +307,6 @@ int msmpeg4_decode(decoder_ctx_t *decoder, VdpPictureInfoMPEG4Part2 const *_info
     void *cedarv_regs = cedarv_get_regs();
     bitstream bs = { .data = cedarv_getPointer(decoder->data), .length = len, .bitpos = 0 };
 
-    output->source_format = INTERNAL_YCBCR_FORMAT;
-		
     if (!decode_vop_header(&bs, info, decoder_p))
             return 0;
 
@@ -394,13 +392,13 @@ int msmpeg4_decode(decoder_ctx_t *decoder, VdpPictureInfoMPEG4Part2 const *_info
     writel(cedarv_virt2phys(output->dataY), cedarv_regs + CEDARV_MPEG_ROT_LUMA);
     writel(cedarv_virt2phys(output->dataU), cedarv_regs + CEDARV_MPEG_ROT_CHROMA);
 
-    if(cedarv_get_version() >= 0x1680)
+    if(output->source_format == VDP_YCBCR_FORMAT_NV12)
     {
-       writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
-       writel((0x1 << 30) | (0x1 << 28), cedarv_regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
-       writel((ALIGN(output->width, 16)/2 << 16) | ALIGN(output->width, 32), cedarv_regs + CEDARV_OUTPUT_STRIDE);
-       writel((ALIGN(output->width, 16)/2 << 16) | ALIGN(output->width, 32), cedarv_regs + CEDARV_EXTRA_OUT_STRIDE);
-       output->source_format = VDP_YCBCR_FORMAT_NV12;
+      int align = output->alignment;
+      writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
+      writel((0x1 << 30) | (0x1 << 28) , cedarv_regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
+      writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_OUTPUT_STRIDE);
+      writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_EXTRA_OUT_STRIDE);
     }
 
     uint32_t rotscale = 0;

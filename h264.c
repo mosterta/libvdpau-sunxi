@@ -124,6 +124,7 @@ typedef struct
 typedef struct
 {
 	uint8_t nal_unit_type;
+    uint8_t isNalRefIdc;
 	uint16_t first_mb_in_slice;
 	uint8_t slice_type;
 	uint8_t pic_parameter_set_id;
@@ -674,7 +675,7 @@ static void fill_frame_lists(h264_context_t *c)
 		if (rf->surface != VDP_INVALID_HANDLE)
 		{
 			if (rf->is_long_term)
-				VDPAU_DBG("NOT IMPLEMENTED: We got a longterm reference!");
+				printf("NOT IMPLEMENTED: We got a longterm reference!\n");
 
 			video_surface_ctx_t *surface = handle_get(rf->surface);
 			if(surface && surface->frame_decoded)
@@ -685,7 +686,7 @@ static void fill_frame_lists(h264_context_t *c)
                 		h264_video_private_t *surface_p = (h264_video_private_t *)surface->decoder_private;
                 		if (!surface_p)
 				{
-					VDPAU_DBG("non-existent reference frame, fake it");
+					printf("non-existent reference frame, fake it\n");
 					surface_p = calloc(1, sizeof(h264_video_private_t));
 
 					surface_p->extra_data_len = (c->picture_width_in_mbs_minus1 + 1) * 
@@ -706,9 +707,12 @@ static void fill_frame_lists(h264_context_t *c)
                     (rf->bottom_is_reference ? PIC_BOTTOM_FIELD : 0);
 
 				frame_list[surface_p->pos] = &c->ref_pic[c->ref_count];
-                c->ref_count = ++c->ref_count & 0xf;
+                ++c->ref_count;
+                c->ref_count = c->ref_count & 0xf;
                 handle_release(rf->surface);
             }
+            else
+              printf("surface=%x, frame_dec=%d\n", surface, surface ? surface->frame_decoded : 0);
 		}
 	}
 
@@ -721,7 +725,11 @@ static void fill_frame_lists(h264_context_t *c)
 		{
 			writel((uint16_t)c->info->field_order_cnt[0], cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
 			writel((uint16_t)c->info->field_order_cnt[1], cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
-            writel(output_p->pic_type << 8, cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
+            uint32_t value = 0;
+            value |= (c->header.isNalRefIdc ? 0 : 2) << 0;
+            value |= (c->header.isNalRefIdc ? 0 : 2) << 4;
+            value |= ((output_p->pic_type == PIC_TYPE_MBAFF) ? 2 : 0) << 8;
+            writel(value, cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
 			writel(cedarv_virt2phys(c->output->dataY), cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
 			writel(cedarv_virt2phys(c->output->dataU), cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
 			writel(cedarv_virt2phys(output_p->extra_data), cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
@@ -744,7 +752,12 @@ static void fill_frame_lists(h264_context_t *c)
 
 			writel(frame_list[i]->top_pic_order_cnt, cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
 			writel(frame_list[i]->bottom_pic_order_cnt, cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
-            writel(surface_p->pic_type << 8, cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
+            uint32_t value = 0;
+            value |= (c->header.isNalRefIdc ? 0 : 2) << 0;
+            value |= (c->header.isNalRefIdc ? 0 : 2) << 4;
+            value |= ((output_p->pic_type == PIC_TYPE_MBAFF) ? 2 : 0) << 8;
+            writel(value, cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
+/*            writel(surface_p->pic_type << 8, cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);*/
 			writel(cedarv_virt2phys(surface->dataY), cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
 			writel(cedarv_virt2phys(surface->dataU), cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
 			writel(cedarv_virt2phys(surface_p->extra_data), cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
@@ -787,14 +800,17 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
     unsigned long value = 0;
     h264_video_private_t *output_p;
 
-        output->source_format = INTERNAL_YCBCR_FORMAT;
-    
 	h264_context_t *c = calloc(1, sizeof(h264_context_t));
 	c->picture_width_in_mbs_minus1 = (decoder->width - 1) / 16;
 	if (!info->frame_mbs_only_flag)
 		c->picture_height_in_mbs_minus1 = ((decoder->height / 2) - 1) / 16;
 	else
 		c->picture_height_in_mbs_minus1 = (decoder->height - 1) / 16;
+#if DEBUG
+    printf("width:%d, height:%d, width_in_mbs-1=%d, height_in_mbs-1=%d\n", decoder->width, decoder->height,
+           c->picture_width_in_mbs_minus1, c->picture_height_in_mbs_minus1);
+#endif
+
 	c->info = info;
 	c->output = output;
 
@@ -860,11 +876,14 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
 
 	// sdctrl
 	writel(0x00000000, cedarv_regs + CEDARV_H264_SDROT_CTRL);
-    if (cedarv_get_version() >= 0x1680)
+    if (output->source_format == VDP_YCBCR_FORMAT_NV12)
 	{
-		writel(OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
-		output->source_format = VDP_YCBCR_FORMAT_NV12;
-	}
+      int align = output->alignment;
+      writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
+      writel((0x1 << 30) | (0x1 << 28) , cedarv_regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
+      writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_OUTPUT_STRIDE);
+      writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_EXTRA_OUT_STRIDE);
+    }
 /*
         if (cedarv_get_version() >= 0x1680)
         {
@@ -878,7 +897,9 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
     
     writel(0x00000000, cedarv_regs + CEDARV_H264_CUR_MB_NUM);
     writel(0x00000000, cedarv_regs + CEDARV_H264_MB_ADDR);
-    
+#if DEBUG
+    printf("start slice decoding!\n");
+#endif
 	unsigned int slice, pos = 0;
 	for (slice = 0; slice < info->slice_count; slice++)
 	{
@@ -887,8 +908,13 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
 
 		pos = find_startcode(decoder->data, len, pos) + 3;
 
-		h->nal_unit_type = cedarv_byteAccess(decoder->data, pos++) & 0x1f;
-
+        h->nal_unit_type = cedarv_byteAccess(decoder->data, pos++);
+#if DEBUG
+        printf("nal_unit_type=%d\n", h->nal_unit_type);
+#endif
+        h->isNalRefIdc = (h->nal_unit_type & 0x60) ? 1: 0;
+        h->nal_unit_type &= 0x1f;
+        
 		if (h->nal_unit_type != 5 && h->nal_unit_type != 1)
 		{
 			free(c);
@@ -900,7 +926,7 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
 		writel((0x1 << 25) | (0x1 << 10), cedarv_regs + CEDARV_H264_CTRL);
 
 		// input buffer
-		writel((len - pos) * 8, cedarv_regs + CEDARV_H264_VLD_LEN);
+		writel((len /*- pos*/) * 8, cedarv_regs + CEDARV_H264_VLD_LEN);
 		writel(pos * 8, cedarv_regs + CEDARV_H264_VLD_OFFSET);
 		uint32_t input_addr = cedarv_virt2phys(decoder->data);
 		writel(input_addr + VBV_SIZE - 1, cedarv_regs + CEDARV_H264_VLD_END);
@@ -927,7 +953,7 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
                         if( h->RefPicList0[i + j].surface && h->RefPicList0[i + j].surface->frame_decoded)
                         {
 						  h264_video_private_t *surface_p = (h264_video_private_t *)h->RefPicList0[i + j].surface->decoder_private;
-                          list |= ((surface_p->pos * 2 + (h->RefPicList0[i + j].field == PIC_BOTTOM_FIELD)) << (j * 8));
+                          list |= ((surface_p->pos * 2 | (h->RefPicList0[i + j].field == PIC_BOTTOM_FIELD)) << (j * 8));
                         }
 					}
 				writel(list, cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
@@ -944,12 +970,13 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
 					if (h->RefPicList1[i + j].surface && h->RefPicList1[i + j].surface->frame_decoded)
 					{
 						h264_video_private_t *surface_p = (h264_video_private_t *)h->RefPicList1[i + j].surface->decoder_private;
-						list |= ((surface_p->pos * 2 + (h->RefPicList1[i + j].field  == PIC_BOTTOM_FIELD)) << (j * 8));
+						list |= ((surface_p->pos * 2 | (h->RefPicList1[i + j].field  == PIC_BOTTOM_FIELD)) << (j * 8));
 					}
 				writel(list, cedarv_regs + CEDARV_H264_RAM_WRITE_DATA);
 			}
 		}
 #endif 
+
 		// picture parameters
 		writel(((info->entropy_coding_mode_flag & 0x1) << 15)
 			| ((info->num_ref_idx_l0_active_minus1 & 0x1f) << 10)
@@ -969,11 +996,19 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
 			| ((c->picture_height_in_mbs_minus1 & 0xff) << 0)
 			, cedarv_regs + CEDARV_H264_FRAME_SIZE);
 
+        uint32_t first_mb_x = (h->first_mb_in_slice % (c->picture_width_in_mbs_minus1 + 1)) & 0xff;
+        uint32_t first_mb_y = ((h->first_mb_in_slice / (c->picture_width_in_mbs_minus1 + 1)) & 0xff) *
+            (output_p->pic_type == PIC_TYPE_MBAFF ? 2 : 1);
+#if DEBUG
+        printf("frame=%ld/%d, first_mb_in_slice=%d, picture_width_in_mbs_minus1=%d\n", num_pics, slice,
+               h->first_mb_in_slice, c->picture_width_in_mbs_minus1 + 1);
+        printf("frame=%ld/%d, first_mb_x=%d, first_mb_y=%d, pos=%d\n", num_pics, slice, first_mb_x, first_mb_y, pos);
+#endif
+
 		// slice parameters
-		writel((((h->first_mb_in_slice % (c->picture_width_in_mbs_minus1 + 1)) & 0xff) << 24)
-			| (((h->first_mb_in_slice / (c->picture_width_in_mbs_minus1 + 1)) & 0xff) *
-            (output_p->pic_type == PIC_TYPE_MBAFF ? 2 : 1) << 16)
-			| ((info->is_reference & 0x1) << 12)
+        writel(((first_mb_x) << 24)
+            | ( first_mb_y << 16)
+			| ((h->isNalRefIdc) << 12)
 			| ((h->slice_type & 0xf) << 8)
 			| ((slice == 0 ? 0x1 : 0x0) << 5)
 			| ((info->field_pic_flag & 0x1) << 4)
@@ -994,6 +1029,7 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
 
         value = 0;
         value |= ((c->default_scaling_lists & 0x1) << 24);
+/*        value |= (1 << 24);*/
         value |= ((info->second_chroma_qp_index_offset & 0x3f) << 16);
         value |= ((info->chroma_qp_index_offset & 0x3f) << 8);
         value |= (((info->pic_init_qp_minus26 + 26 + h->slice_qp_delta) & 0x3f) << 0);
@@ -1003,13 +1039,12 @@ static VdpStatus h264_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_info
 		writel(readl(cedarv_regs + CEDARV_H264_STATUS), cedarv_regs + CEDARV_H264_STATUS);
 
 		// enable int
-		writel(readl(cedarv_regs + CEDARV_H264_CTRL) | 0x7, cedarv_regs + CEDARV_H264_CTRL);
+		writel(readl(cedarv_regs + CEDARV_H264_CTRL) | (0x7), cedarv_regs + CEDARV_H264_CTRL);
 
 		// SHOWTIME, wait until write commands have been issued
 		__sync_synchronize();
 		writel(0x8, cedarv_regs + CEDARV_H264_TRIGGER);
 
-		++num_pics;
 #if TIME_MEAS
 uint64_t tv, tv2;
 		tv = get_time();
@@ -1019,7 +1054,7 @@ uint64_t tv, tv2;
 #if TIME_MEAS
 		tv2 = get_time();
 		if (tv2-tv > 20000000) {
-			printf("cedarv_wait, longer than 20ms:%lld, pics=%ld, longs=%ld\n", tv2-tv, num_pics, ++num_longs);
+			printf("cedarv_wait, longer than 20ms:%lld, pics=%ld/%d, longs=%ld\n", tv2-tv, num_pics, slice, ++num_longs);
 		}
 #endif
 
@@ -1027,15 +1062,22 @@ uint64_t tv, tv2;
 		__sync_synchronize();
         unsigned long status = readl(cedarv_regs + CEDARV_H264_STATUS);
         if(status & 0x2)
-          printf("h264 status=0x%X\n", status);
+          printf("h264 status=0x%lX while decoding frame=%ld/%d\n", status, num_pics, slice);
 		writel(status, cedarv_regs + CEDARV_H264_STATUS);
         int error = readl(cedarv_regs + CEDARV_H264_ERROR);
-        //if(error)
-          //printf("got error=%d while decoding frame=%ld\n", error, num_pics);
+        if(status & 0x2)
+          printf("got error=%d while decoding frame=%ld/%d\n", error, num_pics, slice);
         writel(error, cedarv_regs + CEDARV_H264_ERROR);
 
-		pos = (readl(cedarv_regs + CEDARV_H264_VLD_OFFSET) / 8) - 3;
-	}
+        pos = (readl(cedarv_regs + CEDARV_H264_VLD_OFFSET) / 8) - 3;
+/*        pos = (readl(cedarv_regs + CEDARV_H264_STDC_OFFSET) / 8);*/
+#if DEBUG
+        uint32_t tmp_data;
+        memcpy(&tmp_data, cedarv_getPointer(decoder->data) + pos, 4);
+        printf("frame=%ld/%d, new pos=%d, len=%d data=%x\n", num_pics, slice, pos, len, tmp_data);
+#endif
+    }
+    ++num_pics;
 
 #if 1 
 	// stop H264 engine

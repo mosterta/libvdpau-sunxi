@@ -42,8 +42,9 @@ VdpStatus vdp_decoder_create(VdpDevice device, VdpDecoderProfile profile, uint32
     memset(dec, 0, sizeof(*dec));
     dec->device = dev;
     dec->profile = profile;
-    dec->width = (width + 63) & ~63;
-    dec->height = (height + 63) & ~63;
+
+    dec->width = width;
+    dec->height = height;
 
     dec->data = cedarv_malloc(VBV_SIZE);
     if (! cedarv_isValid(dec->data))
@@ -148,7 +149,7 @@ VdpStatus vdp_decoder_destroy(VdpDecoder decoder)
 
 VdpStatus vdp_decoder_get_parameters(VdpDecoder decoder, VdpDecoderProfile *profile, uint32_t *width, uint32_t *height)
 {
-    decoder_ctx_t *dec = handle_get(decoder);
+  decoder_ctx_t *dec = handle_get(decoder);
     if (!dec)
         return VDP_STATUS_INVALID_HANDLE;
 
@@ -156,7 +157,7 @@ VdpStatus vdp_decoder_get_parameters(VdpDecoder decoder, VdpDecoderProfile *prof
         *profile = dec->profile;
 
     if (width)
-        *width = dec->width;
+      *width = dec->width;
 
     if (height)
         *height = dec->height;
@@ -180,11 +181,17 @@ VdpStatus vdp_decoder_render(VdpDecoder decoder, VdpVideoSurface target, VdpPict
         return VDP_STATUS_INVALID_HANDLE;
     }
 
-    vid->source_format = INTERNAL_YCBCR_FORMAT;
+//    vid->source_format = INTERNAL_YCBCR_FORMAT;
     unsigned int i, pos = 0;
 
+#if DEBUG
+    printf("got %d pieces of data stream\n", bitstream_buffer_count);
+#endif
     for (i = 0; i < bitstream_buffer_count; i++)
     {
+#if DEBUG
+      printf("piece %d: len:%d\n", i, bitstream_buffers[i].bitstream_bytes);
+#endif
         cedarv_memcpy(dec->data, pos, bitstream_buffers[i].bitstream, bitstream_buffers[i].bitstream_bytes);
         pos += bitstream_buffers[i].bitstream_bytes;
     }
@@ -246,10 +253,10 @@ VdpStatus vdp_decoder_query_capabilities(VdpDevice device, VdpDecoderProfile pro
       case VDP_DECODER_PROFILE_DIVX3_QMOBILE:
       case VDP_DECODER_PROFILE_DIVX3_MOBILE:
       case VDP_DECODER_PROFILE_DIVX3_HD_1080P:
-      if (cedarv_get_version() < 0x1680)
-        *is_supported = VDP_TRUE;
-      else
-        *is_supported = VDP_FALSE;
+        if (cedarv_get_version() < 0x1680)
+          *is_supported = VDP_TRUE;
+        else
+          *is_supported = VDP_FALSE;
         break;
 
     case VDP_DECODER_PROFILE_HEVC_MAIN:

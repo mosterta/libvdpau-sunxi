@@ -110,6 +110,8 @@ static struct ve_dev
         .initialized = 0,
         .refCnt = 0,
         .reservedEngine = -1,
+        .version = 0,
+        .regs = 0,
 };
 
 int cedarv_allocateEngine(int engine)
@@ -141,6 +143,10 @@ int cedarv_VeReset()
     ioctl(ve.fd, IOCTL_SET_VE_FREQ_DISP2, 320);
     ioctl(ve.fd, IOCTL_RESET_VE_DISP2, 0);
   }
+  writel(0x1, ve.regs + CEDARV_RESET);
+  usleep(20000); //20ms
+  writel(0x0, ve.regs + CEDARV_RESET);
+
   return 0;
 }
 

@@ -279,12 +279,12 @@ VdpStatus glVDPAUGetVideoFrameConfig(vdpauSurfaceCedar surface, struct videoFram
   config->srcFormat = vs->source_format;
   config->addr[0] = (void*)cedarv_virt2phys(vs->dataY);
   config->addr[1] = (void*)cedarv_virt2phys(vs->dataU);
-  config->align[0] = 32;
-  config->align[1] = 16;
+  config->align[0] = vs->alignment;
+  config->align[1] = vs->alignment;
   if( cedarv_isValid(vs->dataV))
   {
     config->addr[2] = (void*)cedarv_virt2phys(vs->dataV);
-    config->align[2] = 16;
+    config->align[2] = vs->alignment;
   }
   else
   {
@@ -294,8 +294,8 @@ VdpStatus glVDPAUGetVideoFrameConfig(vdpauSurfaceCedar surface, struct videoFram
 
   config->stride_height = vs->stride_height;
   config->stride_width = vs->stride_width;
-  config->video_height = vs->stride_height; //vs->vidHeight;
-  config->video_width = vs->stride_width; //vs->vidWidth;
+  config->video_height = vs->stride_height;
+  config->video_width = vs->stride_width;
 
 #if DEBUG_IMAGE_DATA == 1
   static int first=1;
@@ -320,9 +320,17 @@ VdpStatus glVDPAUGetVideoFrameConfig(vdpauSurfaceCedar surface, struct videoFram
 
 VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat format, uint32_t width, uint32_t height, vdpauSurfaceCedar *surface)
 {
+  int alignment;
+  int externalDecode = 0;
+  int mem_width;
+  int mem_height;
+  
   if (!surface)
     return VDP_STATUS_INVALID_POINTER;
    
+  if(*surface == 0xdeadbeaf)
+    externalDecode = 1;
+
   if (!width || !height)
     return VDP_STATUS_INVALID_SIZE;
    
@@ -336,11 +344,33 @@ VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat fo
   vs->height = height;
   vs->chroma_type = chroma_type;
   vs->source_format = format;
+
+  printf("version:%d, externalDecode:%d\n", cedarv_get_version(), externalDecode);
   
-  int mem_width 	= (width + 63) & ~63;
-  int mem_height 	= (height + 63) & ~63;
-  vs->stride_width      = (width + 63) & ~63;
-  vs->stride_height     = (height) ;
+  if(! externalDecode)
+  {
+    mem_width 	= (width + 63) & ~63;
+    mem_height 	= (height + 63) & ~63;
+    if(cedarv_get_version() < 0x1680)
+    {
+      alignment = 15;
+      vs->source_format = INTERNAL_YCBCR_FORMAT;
+    }
+    else
+    {
+      vs->source_format = VDP_YCBCR_FORMAT_NV12;
+      alignment = 15;
+    }
+  }
+  else
+  {
+    mem_width   = (width);
+    mem_height  = (height);
+    alignment = 0;
+  }
+  vs->alignment = alignment + 1;
+  vs->stride_width      = (width + alignment) & ~alignment;
+  vs->stride_height     = (height);
 
   vs->plane_size 	= mem_width * mem_height;
   cedarv_setBufferInvalid(vs->dataY);

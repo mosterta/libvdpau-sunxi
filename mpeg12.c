@@ -22,6 +22,8 @@
 #include "ve.h"
 #include <time.h>
 #include <stdio.h>
+#include <assert.h>
+#include <errno.h>
 
 #define TIMEMEAS 0
 
@@ -78,8 +80,6 @@ static VdpStatus mpeg12_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_in
 
 	// activate MPEG engine
 	void *cedarv_regs = cedarv_get(CEDARV_ENGINE_MPEG, 0);
-
-	output->source_format = INTERNAL_YCBCR_FORMAT;
 
 	// set quantisation tables
 	for (i = 0; i < 64; i++)
@@ -149,11 +149,14 @@ static VdpStatus mpeg12_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_in
 	writel(cedarv_virt2phys(output->dataY), cedarv_regs + CEDARV_MPEG_ROT_LUMA);
 	writel(cedarv_virt2phys(output->dataU)/* + output->plane_size*/, cedarv_regs + CEDARV_MPEG_ROT_CHROMA);
 
-        if(cedarv_get_version() >= 0x1680)
-        {
-            writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
-            output->source_format = VDP_YCBCR_FORMAT_NV12;
-        }
+    if(output->source_format == VDP_YCBCR_FORMAT_NV12)
+    {
+      int align = output->alignment;
+      writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
+      writel((0x1 << 30) | (0x1 << 28) , cedarv_regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
+      writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_OUTPUT_STRIDE);
+      writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_EXTRA_OUT_STRIDE);
+    }
 
 	// set input offset in bits
 	writel(start_offset * 8, cedarv_regs + CEDARV_MPEG_VLD_OFFSET);
@@ -177,12 +180,15 @@ static VdpStatus mpeg12_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_in
 	uint64_t tv, tv2;
 	tv = get_time();
 #endif
-	cedarv_wait(1);
+    int status = cedarv_wait(1);
+    if (status <= 0) {
+      cedarv_VeReset();
+    }
 #if TIMEMEAS
 	tv2 = get_time();
-	if (tv2-tv > 10000000) {
+	if (tv2-tv > 100000000) {
 		printf("cedarv_wait, longer than 10ms:%lld, pics=%ld, longs=%ld\n", tv2-tv, num_pics, ++num_longs);
-		}
+	}
 #endif	
 
 	// clean interrupt flag
@@ -191,8 +197,8 @@ static VdpStatus mpeg12_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_in
 	// stop MPEG engine
 	cedarv_put();
         output->frame_decoded = 1;
-        
-	return VDP_STATUS_OK;
+
+    return VDP_STATUS_OK;
 }
 
 VdpStatus new_decoder_mpeg12(decoder_ctx_t *decoder)
