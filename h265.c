@@ -383,7 +383,7 @@ static void slice_header(struct h265_private *p)
 
 		p->slice.slice_qp_delta = get_se(p->regs);
 
-		if (p->info->pps_slice_chroma_qp_offsets_present_flag)
+        if (p->info->pps_slice_chroma_qp_offsets_present_flag)
 		{
 			p->slice.slice_cb_qp_offset = get_se(p->regs);
 			p->slice.slice_cr_qp_offset = get_se(p->regs);
@@ -730,7 +730,6 @@ static VdpStatus h265_decode(decoder_ctx_t *decoder,
 	memset(&p->slice, 0, sizeof(p->slice));
 
         p->regs = cedarv_get(CEDARV_ENGINE_HEVC, 0x0);
-        output->source_format = VDP_YCBCR_FORMAT_NV12;
 
 	int pos = 0;
 	while ((pos = find_startcode(cedarv_getPointer(decoder->data), len, pos)) != -1)
@@ -827,10 +826,14 @@ static VdpStatus h265_decode(decoder_ctx_t *decoder,
 //		writel(0x00000007, p->regs + CEDARV_HEVC_CTRL);
 
 		writel((0x1 << 30), p->regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
-		writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, p->regs + CEDARV_OUTPUT_FORMAT);
-		//writel(cedarv_getSize(output->dataY) / 2, p->regs + CEDARV_OUTPUT_CHROMA_OFFSET);
-		writel((ALIGN(decoder->width / 2, 16) << 16) | ALIGN(decoder->width, 32), p->regs + CEDARV_OUTPUT_STRIDE);
-		writel(0x00000000, p->regs + CEDARV_EXTRA_OUT_STRIDE);
+		
+        writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, p->regs + CEDARV_OUTPUT_FORMAT);
+        writel((0x1 << 30) | (0x1 << 28) , p->regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
+
+        int align = output->alignment;
+        writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), p->regs + CEDARV_OUTPUT_STRIDE);
+        writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), p->regs + CEDARV_EXTRA_OUT_STRIDE);
+
 		writel(0x00000000, p->regs + CEDARV_HEVC_EXTRA_OUT_CTRL);
 		writel(cedarv_virt2phys(p->output->dataY) >> 8, p->regs + CEDARV_HEVC_EXTRA_OUT_LUMA_ADDR);
 		writel(cedarv_virt2phys(p->output->dataU) >> 8, p->regs + CEDARV_HEVC_EXTRA_OUT_CHROMA_ADDR);

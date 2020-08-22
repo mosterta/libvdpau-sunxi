@@ -169,6 +169,7 @@ static inline void writeb(uint8_t val, void *addr)
 #define CEDARV_H264_BASIC_BITS		0x2dc
 #define CEDARV_H264_RAM_WRITE_PTR		0x2e0
 #define CEDARV_H264_RAM_WRITE_DATA		0x2e4
+#define CEDARV_H264_STDC_OFFSET         0x2f0
 
 #define CEDARV_SRAM_H264_PRED_WEIGHT_TABLE	0x000
 #define CEDARV_SRAM_H264_FRAMEBUFFER_LIST	0x400

@@ -26,6 +26,7 @@
 
 VdpStatus vdp_video_surface_create(VdpDevice device, VdpChromaType chroma_type, uint32_t width, uint32_t height, VdpVideoSurface *surface)
 {
+   int alignment;
    if (!surface)
       return VDP_STATUS_INVALID_POINTER;
    
@@ -49,6 +50,17 @@ VdpStatus vdp_video_surface_create(VdpDevice device, VdpChromaType chroma_type, 
    
    vs->stride_width 	= (width + 63) & ~63;
    vs->stride_height 	= (height + 63) & ~63;
+   if(cedarv_get_version() < 0x1680)
+   {
+     alignment = 15;
+     vs->source_format = INTERNAL_YCBCR_FORMAT;
+   }
+   else
+   {
+     vs->source_format = VDP_YCBCR_FORMAT_NV12;
+     alignment = 15;
+   }
+
    vs->plane_size 	= vs->stride_width * vs->stride_height;
    cedarv_setBufferInvalid(vs->dataY);
    cedarv_setBufferInvalid(vs->dataU);

@@ -81,8 +81,6 @@ static VdpStatus mpeg12_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_in
 	// activate MPEG engine
 	void *cedarv_regs = cedarv_get(CEDARV_ENGINE_MPEG, 0);
 
-	output->source_format = INTERNAL_YCBCR_FORMAT;
-
 	// set quantisation tables
 	for (i = 0; i < 64; i++)
 		writel((uint32_t)(64 + zigzag_scan[i]) << 8 | info->intra_quantizer_matrix[i], cedarv_regs + CEDARV_MPEG_IQ_MIN_INPUT);
@@ -151,11 +149,14 @@ static VdpStatus mpeg12_decode(decoder_ctx_t *decoder, VdpPictureInfo const *_in
 	writel(cedarv_virt2phys(output->dataY), cedarv_regs + CEDARV_MPEG_ROT_LUMA);
 	writel(cedarv_virt2phys(output->dataU)/* + output->plane_size*/, cedarv_regs + CEDARV_MPEG_ROT_CHROMA);
 
-        if(cedarv_get_version() >= 0x1680)
-        {
-            writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
-            output->source_format = VDP_YCBCR_FORMAT_NV12;
-        }
+    if(output->source_format == VDP_YCBCR_FORMAT_NV12)
+    {
+      int align = output->alignment;
+      writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
+      writel((0x1 << 30) | (0x1 << 28) , cedarv_regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
+      writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_OUTPUT_STRIDE);
+      writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_EXTRA_OUT_STRIDE);
+    }
 
 	// set input offset in bits
 	writel(start_offset * 8, cedarv_regs + CEDARV_MPEG_VLD_OFFSET);

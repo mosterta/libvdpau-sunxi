@@ -110,6 +110,8 @@ static struct ve_dev
         .initialized = 0,
         .refCnt = 0,
         .reservedEngine = -1,
+        .version = 0,
+        .regs = 0,
 };
 
 int cedarv_allocateEngine(int engine)

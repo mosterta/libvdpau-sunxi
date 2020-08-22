@@ -26,7 +26,6 @@
 
 VdpStatus vdp_decoder_create(VdpDevice device, VdpDecoderProfile profile, uint32_t width, uint32_t height, uint32_t max_references, VdpDecoder *decoder)
 {
-    int alignment;
     device_ctx_t *dev = handle_get(device);
     if (!dev)
         return VDP_STATUS_INVALID_HANDLE;
@@ -43,12 +42,9 @@ VdpStatus vdp_decoder_create(VdpDevice device, VdpDecoderProfile profile, uint32
     memset(dec, 0, sizeof(*dec));
     dec->device = dev;
     dec->profile = profile;
-    if(cedarv_get_version() < 1680)
-        alignment = 15;
-    else 
-        alignment = 63;
-    dec->width = (width + alignment) & ~alignment;
-    dec->height = (height);
+
+    dec->width = width;
+    dec->height = height;
 
     dec->data = cedarv_malloc(VBV_SIZE);
     if (! cedarv_isValid(dec->data))
@@ -153,7 +149,7 @@ VdpStatus vdp_decoder_destroy(VdpDecoder decoder)
 
 VdpStatus vdp_decoder_get_parameters(VdpDecoder decoder, VdpDecoderProfile *profile, uint32_t *width, uint32_t *height)
 {
-    decoder_ctx_t *dec = handle_get(decoder);
+  decoder_ctx_t *dec = handle_get(decoder);
     if (!dec)
         return VDP_STATUS_INVALID_HANDLE;
 
@@ -161,7 +157,7 @@ VdpStatus vdp_decoder_get_parameters(VdpDecoder decoder, VdpDecoderProfile *prof
         *profile = dec->profile;
 
     if (width)
-        *width = dec->width;
+      *width = dec->width;
 
     if (height)
         *height = dec->height;
@@ -185,11 +181,17 @@ VdpStatus vdp_decoder_render(VdpDecoder decoder, VdpVideoSurface target, VdpPict
         return VDP_STATUS_INVALID_HANDLE;
     }
 
-    vid->source_format = INTERNAL_YCBCR_FORMAT;
+//    vid->source_format = INTERNAL_YCBCR_FORMAT;
     unsigned int i, pos = 0;
 
+#if DEBUG
+    printf("got %d pieces of data stream\n", bitstream_buffer_count);
+#endif
     for (i = 0; i < bitstream_buffer_count; i++)
     {
+#if DEBUG
+      printf("piece %d: len:%d\n", i, bitstream_buffers[i].bitstream_bytes);
+#endif
         cedarv_memcpy(dec->data, pos, bitstream_buffers[i].bitstream, bitstream_buffers[i].bitstream_bytes);
         pos += bitstream_buffers[i].bitstream_bytes;
     }

@@ -1799,8 +1799,6 @@ int mpeg4_decode(decoder_ctx_t *decoder, VdpPictureInfoMPEG4Part2 const *_info, 
 	void *cedarv_regs = cedarv_get_regs();
 	bitstream bs = { .data = cedarv_getPointer(decoder->data), .length = len, .bitpos = 0 };
 
-    output->source_format = INTERNAL_YCBCR_FORMAT;
- 
 	while (find_startcode(&bs))
 	{
             startcode = get_bits(&bs, 8);
@@ -1916,13 +1914,13 @@ int mpeg4_decode(decoder_ctx_t *decoder, VdpPictureInfoMPEG4Part2 const *_info, 
             writel(cedarv_virt2phys(output->dataY), cedarv_regs + CEDARV_MPEG_ROT_LUMA);
             writel(cedarv_virt2phys(output->dataU), cedarv_regs + CEDARV_MPEG_ROT_CHROMA);
 
-            if(cedarv_get_version() >= 0x1680)
+            if(output->source_format == VDP_YCBCR_FORMAT_NV12)
             {
-                writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
-                writel((0x1 << 30) | (0x1 << 28) , cedarv_regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
-                writel((ALIGN(output->width, 16)/2 << 16) | ALIGN(output->width, 32), cedarv_regs + CEDARV_OUTPUT_STRIDE);
-                writel((ALIGN(output->width, 16)/2 << 16) | ALIGN(output->width, 32), cedarv_regs + CEDARV_EXTRA_OUT_STRIDE);
-                output->source_format = VDP_YCBCR_FORMAT_NV12;
+              int align = output->alignment;
+              writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
+              writel((0x1 << 30) | (0x1 << 28) , cedarv_regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
+              writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_OUTPUT_STRIDE);
+              writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_EXTRA_OUT_STRIDE);
             }
 
             uint32_t rotscale = 0;
@@ -1945,7 +1943,7 @@ int mpeg4_decode(decoder_ctx_t *decoder, VdpPictureInfoMPEG4Part2 const *_info, 
             cedarv_control |= CEDARV_MPEG_CTRL_CEDARV_FINISH_INT_EN(1);
             cedarv_control |= CEDARV_MPEG_CTRL_CEDARV_ERROR_INT_EN(1);
             cedarv_control |= CEDARV_MPEG_CTRL_QP_AC_DC_OUT_EN(1);
-#if 0
+#if 1
             if(decoder_p->vop_header.vop_coding_type == VOP_B)
               cedarv_control |= CEDARV_MPEG_CTRL_SWVLD_FLAG(1);
 #endif
