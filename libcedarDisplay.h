@@ -51,7 +51,7 @@ extern "C"
   void glVDPAUMapSurfacesCedar(GLsizei numSurfaces, const vdpauSurfaceCedar *surfaces);
   void glVDPAUUnmapSurfacesCedar(GLsizei numSurfaces, const vdpauSurfaceCedar *surfaces);
   VdpStatus glVDPAUGetVideoFrameConfig(vdpauSurfaceCedar surface, struct videoFrameConfig *config);
-  VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat format, uint32_t width, uint32_t height, vdpauSurfaceCedar *surface);
+  VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat format, uint32_t width, uint32_t height, uint8_t align[3], vdpauSurfaceCedar *surface);
   VdpStatus glVDPAUDestroySurfaceCedar(vdpauSurfaceCedar surface);
 #ifdef __cplusplus
 }

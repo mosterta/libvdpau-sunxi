@@ -1916,7 +1916,7 @@ int mpeg4_decode(decoder_ctx_t *decoder, VdpPictureInfoMPEG4Part2 const *_info, 
 
             if(output->source_format == VDP_YCBCR_FORMAT_NV12)
             {
-              int align = output->alignment;
+              int align = output->alignment[0];
               writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, cedarv_regs + CEDARV_OUTPUT_FORMAT);
               writel((0x1 << 30) | (0x1 << 28) , cedarv_regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
               writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), cedarv_regs + CEDARV_OUTPUT_STRIDE);

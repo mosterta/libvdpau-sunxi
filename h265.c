@@ -830,7 +830,7 @@ static VdpStatus h265_decode(decoder_ctx_t *decoder,
         writel(OUTPUT_FORMAT_NV12 | EXTRA_OUTPUT_FORMAT_NV12, p->regs + CEDARV_OUTPUT_FORMAT);
         writel((0x1 << 30) | (0x1 << 28) , p->regs + CEDARV_EXTRA_OUT_FMT_OFFSET);
 
-        int align = output->alignment;
+        int align = output->alignment[0];
         writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), p->regs + CEDARV_OUTPUT_STRIDE);
         writel((ALIGN(output->width, align)/2 << 16) | ALIGN(output->width, align), p->regs + CEDARV_EXTRA_OUT_STRIDE);
 

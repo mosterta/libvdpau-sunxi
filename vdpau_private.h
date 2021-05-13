@@ -87,7 +87,7 @@ typedef struct video_surface_ctx_struct
 	enum VdpauNVState vdpNvState;
 	int plane_size;
     uint8_t frame_decoded;
-    uint8_t alignment;
+    uint8_t alignment[3];
     void *decoder_private;
 	void (*decoder_private_free)(struct video_surface_ctx_struct *surface);
 } video_surface_ctx_t;

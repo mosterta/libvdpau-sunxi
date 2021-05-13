@@ -279,12 +279,12 @@ VdpStatus glVDPAUGetVideoFrameConfig(vdpauSurfaceCedar surface, struct videoFram
   config->srcFormat = vs->source_format;
   config->addr[0] = (void*)cedarv_virt2phys(vs->dataY);
   config->addr[1] = (void*)cedarv_virt2phys(vs->dataU);
-  config->align[0] = vs->alignment;
-  config->align[1] = vs->alignment;
+  config->align[0] = vs->alignment[0];
+  config->align[1] = vs->alignment[1];
   if( cedarv_isValid(vs->dataV))
   {
     config->addr[2] = (void*)cedarv_virt2phys(vs->dataV);
-    config->align[2] = vs->alignment;
+    config->align[2] = vs->alignment[2];
   }
   else
   {
@@ -318,26 +318,26 @@ VdpStatus glVDPAUGetVideoFrameConfig(vdpauSurfaceCedar surface, struct videoFram
   return VDP_STATUS_OK;
 }
 
-VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat format, uint32_t width, uint32_t height, vdpauSurfaceCedar *surface)
+VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat format, uint32_t width, uint32_t height, uint8_t align[3], vdpauSurfaceCedar *surface)
 {
-  int alignment;
+  int alignment[3];
   int externalDecode = 0;
   int mem_width;
   int mem_height;
-  
+
   if (!surface)
     return VDP_STATUS_INVALID_POINTER;
-   
+
   if(*surface == 0xdeadbeaf)
     externalDecode = 1;
 
   if (!width || !height)
     return VDP_STATUS_INVALID_SIZE;
-   
+
   video_surface_ctx_t *vs = handle_create(sizeof(*vs), surface, htype_video);
   if (!vs)
     return VDP_STATUS_RESOURCES;
-   
+
   VDPAU_DBG("vdpau video surface=%d created", *surface);
 
   vs->width = width;
@@ -346,37 +346,41 @@ VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat fo
   vs->source_format = format;
 
   printf("version:%d, externalDecode:%d\n", cedarv_get_version(), externalDecode);
-  
-  if(! externalDecode)
+
+  if(align[0] == 0)
   {
     mem_width 	= (width + 63) & ~63;
     mem_height 	= (height + 63) & ~63;
     if(cedarv_get_version() < 0x1680)
     {
-      alignment = 15;
-      vs->source_format = INTERNAL_YCBCR_FORMAT;
+        vs->source_format = INTERNAL_YCBCR_FORMAT;
     }
     else
     {
-      vs->source_format = VDP_YCBCR_FORMAT_NV12;
-      alignment = 15;
+        vs->source_format = VDP_YCBCR_FORMAT_NV12;
     }
+    alignment[0] = 16;
+    alignment[1] = 16;
+    alignment[2] = 16;
   }
   else
   {
-    mem_width   = (width);
+    mem_width   = (width + (align[0]-1)) & ~(align[0]-1);
     mem_height  = (height);
-    alignment = 0;
+    alignment[0] = align[0];
+    alignment[1] = align[1];
+    alignment[2] = align[2];
   }
-  vs->alignment = alignment + 1;
-  vs->stride_width      = (width + alignment) & ~alignment;
+  for(int i=0; i<3; i++)
+    vs->alignment[i] = alignment[i];
+  vs->stride_width      = (width + (alignment[0]-1)) & ~(alignment[0]-1);
   vs->stride_height     = (height);
 
   vs->plane_size 	= mem_width * mem_height;
   cedarv_setBufferInvalid(vs->dataY);
   cedarv_setBufferInvalid(vs->dataU);
   cedarv_setBufferInvalid(vs->dataV);
-  
+
   switch (format)
   {
     case VDP_YCBCR_FORMAT_NV12:
@@ -390,7 +394,7 @@ VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat fo
           if (! cedarv_isValid(vs->dataY) || ! cedarv_isValid(vs->dataU) || ! cedarv_isValid(vs->dataV))
           {
             printf("vdpau video surface=%d create, failure\n", *surface);
-    
+
             handle_destroy(*surface);
             return VDP_STATUS_RESOURCES;
           }
@@ -403,7 +407,7 @@ VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat fo
           if (! cedarv_isValid(vs->dataY) || ! cedarv_isValid(vs->dataU) || ! cedarv_isValid(vs->dataV))
           {
             printf("vdpau video surface=%d create, failure\n", *surface);
-    
+
             handle_destroy(*surface);
             return VDP_STATUS_RESOURCES;
           }
@@ -415,11 +419,11 @@ VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat fo
           if (! cedarv_isValid(vs->dataY) || ! cedarv_isValid(vs->dataU))
           {
             printf("vdpau video surface=%d create, failure\n", *surface);
-    
+
             handle_destroy(*surface);
             return VDP_STATUS_RESOURCES;
           }
-          
+
           break;
         default:
           free(vs);
@@ -437,7 +441,7 @@ VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat fo
           if (! cedarv_isValid(vs->dataY) || ! cedarv_isValid(vs->dataU) || ! cedarv_isValid(vs->dataV))
           {
             printf("vdpau video surface=%d create, failure\n", *surface);
-        
+
             handle_destroy(*surface);
             return VDP_STATUS_RESOURCES;
           }
@@ -450,7 +454,7 @@ VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat fo
           if (! cedarv_isValid(vs->dataY) || ! cedarv_isValid(vs->dataU) || ! cedarv_isValid(vs->dataV))
           {
             printf("vdpau video surface=%d create, failure\n", *surface);
-        
+
             handle_destroy(*surface);
             return VDP_STATUS_RESOURCES;
           }
@@ -463,11 +467,11 @@ VdpStatus glVDPAUCreateSurfaceCedar(VdpChromaType chroma_type, VdpYCbCrFormat fo
           if (! cedarv_isValid(vs->dataY) || ! cedarv_isValid(vs->dataU) || ! cedarv_isValid(vs->dataV))
           {
             printf("vdpau video surface=%d create, failure\n", *surface);
-        
+
             handle_destroy(*surface);
             return VDP_STATUS_RESOURCES;
           }
-              
+
           break;
         default:
           free(vs);
@@ -497,9 +501,9 @@ VdpStatus glVDPAUDestroySurfaceCedar(vdpauSurfaceCedar surface)
   cedarv_setBufferInvalid(vs->dataY);
   cedarv_setBufferInvalid(vs->dataU);
   cedarv_setBufferInvalid(vs->dataV);
-        
+
   VDPAU_DBG("vdpau video surface=%d destroyed", surface);
-        
+
   handle_release(surface);
   handle_destroy(surface);
 
@@ -521,9 +525,9 @@ VdpStatus glVDPAUGetMappedMemoryCedar(vdpauSurfaceCedar surface, void** addrY, v
     }
     videoSurface = nv->surface;
   }
-  
+
   assert(handle_get_type(surface) == htype_video);
-  
+
   video_surface_ctx_t *vs = handle_get(videoSurface);
   if(! vs)
   {
